@@ -1,12 +1,54 @@
 "use client";
 
 import { useRef } from "react";
-import "chart.js/auto";
-import { Chart } from "react-chartjs-2";
+import { Chart as ChartJS } from "chart.js/auto"; // https://github.com/chartjs/Chart.js
+import annotationPlugin from "chartjs-plugin-annotation"; // https://github.com/chartjs/chartjs-plugin-annotation
+import { Chart } from "react-chartjs-2"; // https://github.com/reactchartjs/react-chartjs-2
 import dayjs from "@/utils/dayjs";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm"; // https://github.com/bolstycjw/chartjs-adapter-dayjs-4
-import type { Chart as ChartJS } from "chart.js";
 import type { MarcapData } from "@/utils/fetch";
+
+const hoverAnnotationPlugin = {
+  // https://www.chartjs.org/docs/latest/developers/plugins.html
+  id: "hover_annotation_plugin",
+
+  // https://www.chartjs.org/docs/latest/api/interfaces/Plugin.html#beforeinit
+  beforeInit(chart, args, options) {
+    const { annotations } = chart.options.plugins.annotation;
+    annotations["hoverLineAnnotation"] = {
+      // https://www.chartjs.org/chartjs-plugin-annotation/latest/guide/types/line.html
+      type: "line",
+      scaleID: "x",
+      value: dayjs("2024-04-01", "YYYY-MM-DD").valueOf(),
+      borderColor: "rgb(75, 192, 192)",
+      borderWidth: 1,
+      display: true,
+    };
+  },
+
+  // https://www.chartjs.org/docs/latest/api/interfaces/Plugin.html#afterevent
+  afterEvent(chart, args, options) {
+    if (args.event.type === "mousemove") {
+      if (
+        chart.tooltip.dataPoints != null &&
+        chart.tooltip.dataPoints.length > 0
+      ) {
+        const { x: newValue } = chart.tooltip.dataPoints[0].raw;
+        const { annotations } = chart.options.plugins.annotation;
+
+        const currentValue = annotations["hoverLineAnnotation"].value;
+        if (currentValue !== newValue) {
+          annotations["hoverLineAnnotation"].value = newValue;
+          chart.update();
+        }
+      }
+    }
+  },
+
+  defaults: {},
+};
+
+ChartJS.register(annotationPlugin, hoverAnnotationPlugin);
 
 export default function C001({ data }: { readonly data: MarcapData[] }) {
   const chartRef = useRef<ChartJS>(null);
@@ -54,6 +96,14 @@ export default function C001({ data }: { readonly data: MarcapData[] }) {
           type: "linear",
           beginAtZero: true,
         },
+      },
+
+      plugins: {},
+
+      interaction: {
+        mode: "nearest",
+        axis: "x",
+        intersect: false,
       },
     };
   }
