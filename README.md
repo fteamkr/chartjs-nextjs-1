@@ -9,3 +9,9 @@ npm install next@latest react@latest react-dom@latest
 ```
 npm install react-chartjs-2 chart.js
 ```
+
+### [csv-parse](https://csv.js.org/parse/)
+
+```
+npm install csv-parse server-only
+```
