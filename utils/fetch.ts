@@ -1,5 +1,6 @@
 import { parse } from "csv-parse"; // https://csv.js.org/parse/distributions/nodejs_esm/
 import { promises as fs } from "fs"; // https://nodejs.org/docs/latest-v20.x/api/fs.html
+import type { Readable } from "stream"; // https://nodejs.org/docs/latest-v20.x/api/stream.html#readable-streams
 import "server-only";
 
 async function readYearlyMarcapDataFromCSV(year: string) {
@@ -34,11 +35,11 @@ export async function getMarcapData(code: string): Promise<MarcapData[]> {
 
   return new Promise((resolve, reject) => {
     // https://csv.js.org/parse/api/stream_callback/#combining-a-stream-with-a-entire-dataset
-    const records = [];
+    const records: MarcapData[] = [];
     parse(input, {
       columns: true,
     })
-      .on("readable", function () {
+      .on("readable", function (this: Readable) {
         let record;
         while ((record = this.read())) {
           if (record.Code === code) {
