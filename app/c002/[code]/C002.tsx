@@ -1,9 +1,14 @@
 "use client";
 
 import { useRef } from "react";
+import { Chart } from "react-chartjs-2"; // https://github.com/reactchartjs/react-chartjs-2
 import { Chart as ChartJS } from "chart.js/auto"; // https://github.com/chartjs/Chart.js
 import annotationPlugin from "chartjs-plugin-annotation"; // https://github.com/chartjs/chartjs-plugin-annotation
-import { Chart } from "react-chartjs-2"; // https://github.com/reactchartjs/react-chartjs-2
+import zoomPlugin from "chartjs-plugin-zoom"; // https://github.com/chartjs/chartjs-plugin-zoom
+import {
+  CandlestickController,
+  CandlestickElement,
+} from "chartjs-chart-financial"; // https://github.com/chartjs/chartjs-chart-financial
 import dayjs from "@/utils/dayjs";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm"; // https://github.com/bolstycjw/chartjs-adapter-dayjs-4
 import type { ChartData, ChartOptions, ChartEvent, Point } from "chart.js";
@@ -48,14 +53,26 @@ const baseAnnotationPlugin = {
         content: labelContent,
         display: true,
       },
+      animations: {
+        numbers: {
+          properties: ["x", "x2"],
+          type: "number",
+        },
+      },
     } as LineAnnotationOptions;
 
     if (chart.options.plugins == null) {
-      chart.options.plugins = { annotation: { annotations: [] } };
+      chart.options.plugins = {
+        annotation: {
+          annotations: [],
+        },
+      };
     }
 
     if (chart.options.plugins.annotation == null) {
-      chart.options.plugins.annotation = { annotations: [] };
+      chart.options.plugins.annotation = {
+        annotations: [],
+      };
     }
 
     if (chart.options.plugins.annotation.annotations == null) {
@@ -129,7 +146,6 @@ const baseAnnotationPlugin = {
     options: Record<string, any>
   ) {
     const { event } = args;
-
     if (event.type === "mousemove") {
       // HOVER
       if (
@@ -183,9 +199,11 @@ const baseAnnotationPlugin = {
           { intersect: false, axis: "x" },
           true
         );
+
         if (elements.length > 0) {
           const [firstElement] = elements;
           const { datasetIndex, index } = firstElement;
+
           const { click } = options;
           click.afterEvent(chart.data.datasets[datasetIndex].data[index]);
         }
@@ -207,9 +225,15 @@ const baseAnnotationPlugin = {
   },
 };
 
-ChartJS.register(annotationPlugin, baseAnnotationPlugin);
+ChartJS.register(
+  annotationPlugin,
+  baseAnnotationPlugin,
+  zoomPlugin,
+  CandlestickController,
+  CandlestickElement
+);
 
-export default function C001({
+export default function C002({
   date,
   data,
   onChangeDate,
@@ -220,7 +244,13 @@ export default function C001({
 }) {
   const hoveredValue = useRef<number | undefined>();
 
-  const chartType = "line"; // https://www.chartjs.org/docs/latest/charts/line.html
+  const xRange = useRef<{ min: number; max: number }>({
+    min: dayjs("2024-05-01", "YYYY-MM-DD").valueOf(),
+    max: dayjs("2024-05-30", "YYYY-MM-DD").endOf("day").valueOf(),
+  });
+  const { min: xMin, max: xMax } = xRange.current;
+
+  const chartType = "candlestick"; // https://www.chartjs.org/chartjs-chart-financial/
 
   let chartData;
   let chartOptions;
@@ -229,17 +259,19 @@ export default function C001({
 
     chartData = {
       datasets: [
-        // https://www.chartjs.org/docs/latest/charts/line.html#dataset-properties
+        // https://github.com/chartjs/chartjs-chart-financial/blob/master/src/controller.financial.js
         {
+          type: chartType,
           label: `${firstData.Name}(${firstData.Code})`,
-          data: data.map(({ Date: d, Close: c }) => ({
+          data: data.map(({ Date: d, Open: o, High: h, Low: l, Close: c }) => ({
             x: dayjs(d, "YYYY-MM-DD").valueOf(), // https://day.js.org/docs/en/parse/string-format
-            y: Number.parseInt(c, 10),
+            o: Number.parseInt(o, 10),
+            h: Number.parseInt(h, 10),
+            l: Number.parseInt(l, 10),
+            c: Number.parseInt(c, 10),
           })),
           parsing: false,
-          fill: false,
           borderColor: "rgb(75, 192, 192)",
-          tension: 0.1,
         },
       ],
     } as ChartData<typeof chartType>;
@@ -257,6 +289,8 @@ export default function C001({
               day: "ll", // https://day.js.org/docs/en/display/format#list-of-localized-formats
             },
           },
+          min: xMin,
+          max: xMax,
         },
         y: {
           // https://www.chartjs.org/docs/latest/axes/cartesian/linear.html
@@ -285,12 +319,43 @@ export default function C001({
             },
           },
         },
+
+        zoom: {
+          // https://www.chartjs.org/chartjs-plugin-zoom/latest/guide/options.html
+          pan: {
+            enabled: true,
+            mode: "x",
+            onPanComplete({ chart }: { chart: ChartJS }) {
+              const { min, max } = chart.scales.x;
+              xRange.current = { min, max };
+            },
+          },
+          zoom: {
+            wheel: {
+              enabled: true,
+            },
+            pinch: {
+              enabled: true,
+            },
+            mode: "x",
+          },
+          limits: {
+            minRange: 1000 * 60 * 60 * 24 * 30,
+          },
+        },
       },
 
       interaction: {
         mode: "nearest",
         axis: "x",
         intersect: false,
+      },
+
+      animations: {
+        numbers: {
+          properties: ["x", "x2"],
+          type: "number",
+        },
       },
     } as ChartOptions<typeof chartType>;
   }
