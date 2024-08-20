@@ -1,5 +1,5 @@
 import { getMarcapData } from "@/utils/fetch";
-import V001 from "./V002";
+import V002 from "./V002";
 
 export default async function Page({
   params,
@@ -12,7 +12,7 @@ export default async function Page({
   return (
     <>
       <div>Code: {code}</div>
-      <V001 data={data}></V001>
+      <V002 data={data}></V002>
     </>
   );
 }
